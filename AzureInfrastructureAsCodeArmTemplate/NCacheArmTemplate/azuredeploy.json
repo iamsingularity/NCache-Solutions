@@ -1,0 +1,411 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "cacheName": {
+      "type": "string",
+      "defaultValue": "AppCache,SessionCache,DataCache",
+      "metadata": {
+        "description": "Name(s) for cache cluster"
+      }
+    },
+    "cacheTopology": {
+      "type": "string",
+      "defaultValue": "PartitionedOfReplica,PartitionedOfReplica,PartitionedOfReplica",
+      "metadata": {
+        "description": "Topology(s) for NCache Cluster"
+      }
+    },
+    "cacheSize": {
+      "type": "string",
+      "defaultValue": "1024,1024,1024",
+      "metadata": {
+        "description": "Cache size(s)"
+      }
+    },
+      "NCacheVmCount": {
+        "type": "int",
+        "minValue": 1,
+        "defaultValue": 2,
+        "metadata": {
+          "description": "Number of NCache Nodes to be deployed"
+        }
+      },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "azadmin",
+      "metadata": {
+        "description": "NCache VM administrator username"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "defaultValue": "12345Alachisoft",
+      "metadata": {
+        "description": "NCache VM administrative user password"
+      }
+    },
+      "licenseKey": {
+        "type": "string",
+        "metadata": {
+          "description": "License key to register NCache"
+        },
+        "defaultValue": "NotSpecified"
+      },
+      "environmentName": {
+        "type": "string",
+        "metadata": {
+          "description": "Environment name for activation"
+        },
+        "defaultValue": "NotSpecified"
+      },
+      "numberOfClients": {
+        "type": "int",
+        "metadata": {
+          "description": "Number of clients of Node"
+        },
+        "defaultValue": 0
+      },
+      "firstName": {
+        "type": "string",
+        "metadata": {
+          "description": "First Name"
+        }
+      },
+      "lastName": {
+        "type": "string",
+        "metadata": {
+          "description": "Last Name"
+        }
+      },
+      "company": {
+        "type": "string",
+        "metadata": {
+          "description": "Company"
+        }
+      },
+      "emailAddress": {
+        "type": "string",
+        "metadata": {
+          "description": "Email Address"
+        }
+      },
+      "clusterPort": {
+        "type": "int",
+        "minValue": 1024,
+        "maxValue": 65535,
+        "defaultValue": 7800,
+        "metadata": {
+          "description": "Port for NCache Cluster"
+        }
+      },
+      "replicationStrategy": {
+        "type": "string",
+        "allowedValues": [
+          "async",
+          "sync"
+        ],
+        "defaultValue": "async"
+      },
+      "evictionPolicy": {
+        "type": "string",
+        "allowedValues": [
+          "none",
+          "LRU",
+          "LFU",
+          "Priority"
+        ],
+        "defaultValue": "LRU"
+      },
+      "evictionPercentage": {
+        "type": "string",
+        "defaultValue": "5"
+      },
+      "publicIpAddressName": {
+        "type": "string",
+        "defaultValue": "[concat(parameters('virtualMachineNamePrefix'), 'ip')]"
+      },
+      "location": {
+        "type": "string",
+        "defaultValue": "[resourceGroup().location]"
+      },
+      "virtualMachineNamePrefix": {
+        "type": "string",
+        "defaultValue": "NCacheVM"
+      },
+      "virtualMachineSize": {
+        "type": "string",
+        "defaultValue": "Standard_DS2_v2"
+      },
+      "addressPrefix": {
+        "type": "string",
+        "defaultValue": "10.0.0.0/16"
+      },
+      "subnetName": {
+        "type": "string",
+        "defaultValue": "Subnet1"
+      },
+      "subnetPrefix": {
+        "type": "string",
+        "defaultValue": "10.0.0.0/24"
+      },
+      "virtualNetworkName": {
+        "type": "string",
+        "defaultValue": "MyVNET1"
+      },
+      "networkInterfaceName": {
+        "type": "string",
+        "defaultValue": "[concat(parameters('virtualMachineNamePrefix'), 'NIC')]"
+      },
+      "networkSecurityGroupName": {
+        "type": "string",
+        "defaultValue": "NetworkSecurityGroup"
+      },
+      "NCacheClusterCreationScriptFileUri": {
+        "type": "string",
+        "defaultValue": "NotSpecified"
+      }
+    },
+  "resources": [
+    {
+      "name": "[concat(parameters('virtualMachineNamePrefix'), copyIndex(1))]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2017-12-01",
+      "location": "[parameters('location')]",
+      "copy": {
+        "name": "vmLoop",
+        "mode": "serial",
+        "count": "[parameters('NCacheVmCount')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces/', concat(parameters('networkInterfaceName'), copyIndex(1)))]"
+      ],
+      "plan": {
+        "name": "nc-ent-50-sp2",
+        "publisher": "alachisoft",
+        "product": "ncache_enterprise-50sp2"
+      },
+      "properties": {
+        "osProfile": {
+          "computerName": "[concat(parameters('virtualMachineNamePrefix'), copyIndex(1))]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "provisionVmAgent": "true"
+          }
+        },
+        "hardwareProfile": {
+          "vmSize": "[parameters('virtualMachineSize')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "alachisoft",
+            "offer": "ncache_enterprise-50sp2",
+            "sku": "nc-ent-50-sp2",
+            "version": "3.0.0"
+          },
+          "osDisk": {
+            "createOption": "FromImage"
+          },
+          "dataDisks": []
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('networkInterfaceName'), copyIndex(1)))]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "[parameters('virtualNetworkName')]",
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2017-11-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('addressPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[parameters('subnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('subnetPrefix')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[concat(parameters('networkInterfaceName'), copyIndex(1))]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2017-11-01",
+      "location": "[parameters('location')]",
+      "copy": {
+        "name": "networkInterfaceLoop",
+        "mode": "serial",
+        "count": "[parameters('NCacheVmCount')]"
+      },
+      "dependsOn": [
+        "[parameters('virtualNetworkName')]",
+        "[resourceId('Microsoft.Network/publicIpAddresses/', concat(parameters('publicIpAddressName'), copyIndex(1)))]",
+        "[parameters('networkSecurityGroupName')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'), parameters('subnetName'))]"
+              },
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIpAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIpAddresses', concat(parameters('publicIpAddressName'), copyIndex(1)))]"
+              }
+            }
+          }
+        ],
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]"
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('publicIpAddressName'), copyIndex(1))]",
+      "type": "Microsoft.Network/publicIpAddresses",
+      "apiVersion": "2017-11-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publicIpAllocationMethod": "Dynamic"
+      },
+      "copy": {
+        "name": "ipLoop",
+        "mode": "serial",
+        "count": "[parameters('NCacheVmCount')]"
+      },
+      "tags": {
+        "ipAddress": "ipAddresses"
+      }
+    },
+    {
+      "name": "[parameters('networkSecurityGroupName')]",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2016-09-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "default-allow-rdp",
+            "properties": {
+              "priority": 1000,
+              "sourceAddressPrefix": "*",
+              "protocol": "Tcp",
+              "destinationPortRange": "3389",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "default-allow-cluster",
+            "properties": {
+              "priority": 1001,
+              "sourceAddressPrefix": "*",
+              "protocol": "Tcp",
+              "destinationPortRange": "[parameters('clusterPort')]",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "default-allow-ncmanagement",
+            "properties": {
+              "priority": 1002,
+              "sourceAddressPrefix": "*",
+              "protocol": "Tcp",
+              "destinationPortRange": "8250",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "default-allow-rdp-ob",
+            "properties": {
+              "priority": 1003,
+              "sourceAddressPrefix": "*",
+              "protocol": "Tcp",
+              "destinationPortRange": "3389",
+              "access": "Allow",
+              "direction": "Outbound",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "default-allow-cluster-ob",
+            "properties": {
+              "priority": 1004,
+              "sourceAddressPrefix": "*",
+              "protocol": "Tcp",
+              "destinationPortRange": "[parameters('clusterPort')]",
+              "access": "Allow",
+              "direction": "Outbound",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "default-allow-ncmanagement-ob",
+            "properties": {
+              "priority": 1005,
+              "sourceAddressPrefix": "*",
+              "protocol": "Tcp",
+              "destinationPortRange": "8250",
+              "access": "Allow",
+              "direction": "Outbound",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('virtualMachineNamePrefix'), copyIndex(1), '/initNCache', copyIndex(1))]",
+      "apiVersion": "2017-12-01",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines/', concat(parameters('virtualMachineNamePrefix'), copyIndex(1)))]"
+      ],
+      "properties": {
+        "autoUpgradeMinorVersion": true,
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.9",
+        "settings": {
+          "fileUris": [
+            "[parameters('NCacheClusterCreationScriptFileUri')]"
+          ],
+          "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Bypass -File ', 'NCacheConfiguration.ps1', ' -clusterName ', parameters('cacheName'), ' -topology ', parameters('cacheTopology'), ' -currentIP ', reference(concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'), copyIndex(1))).ipConfigurations[0].properties.privateIPAddress, ' -serverIP ', reference(concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'), 1)).ipConfigurations[0].properties.privateIPAddress, ' -replicationStrategy ', parameters('replicationStrategy'), ' -evictionPolicy ', parameters('evictionPolicy'), ' -maxSize ', parameters('cacheSize'), ' -evictionPercentage ', parameters('evictionPercentage'), ' -firstName ', parameters('firstName'), ' -lastName ', parameters('lastName'), ' -emailAddress ', parameters('emailAddress'), ' -company ', parameters('company'), ' -environment ', parameters('environmentName'), ' -numberOfClients ', parameters('numberOfClients'), ' -licenseKey ', parameters('licenseKey'), ' -vmCount ', parameters('NCacheVmCount'))]"
+        },
+        "protectedSettings": {
+        }
+      },
+      "copy": {
+        "name": "createExtensionsLoop",
+        "count": "[parameters('NCacheVmCount')]",
+        "mode": "Serial"
+      }
+    }
+  ]
+}
